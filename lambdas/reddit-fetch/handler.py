@@ -126,15 +126,45 @@ def lambda_handler(event, context):
                     'post_id': submission.id,
                     'subreddit': subreddit_name,
                     'title': submission.title,
+                    'selftext': submission.selftext or '',  # Post body
                     'author': str(submission.author) if submission.author else '[deleted]',
                     'upvotes': submission.score,
                     'url': f'https://reddit.com{submission.permalink}',
-                    'created_utc': submission.created_utc
+                    'created_utc': submission.created_utc,
+                    'num_comments': submission.num_comments
                 }
 
                 posts_to_send.append(post_data)
 
-            print(f"Found {len(posts_to_send)} new posts in r/{subreddit_name}")
+                # Fetch top-level comments (limit to avoid rate limits)
+                try:
+                    submission.comments.replace_more(limit=0)  # Don't fetch "load more" comments
+                    for comment in submission.comments.list()[:50]:  # Limit to 50 comments per post
+                        if comment.created_utc <= last_fetch:
+                            continue
+
+                        comment_data = {
+                            'post_id': submission.id,
+                            'comment_id': comment.id,
+                            'subreddit': subreddit_name,
+                            'parent_type': 'post',
+                            'parent_id': submission.id,
+                            'body': comment.body,
+                            'author': str(comment.author) if comment.author else '[deleted]',
+                            'upvotes': comment.score,
+                            'url': f'https://reddit.com{comment.permalink}',
+                            'created_utc': comment.created_utc,
+                            'is_comment': True
+                        }
+                        posts_to_send.append(comment_data)
+
+                except Exception as e:
+                    print(f"Error fetching comments for {submission.id}: {e}")
+
+            # Count posts vs comments
+            posts_count = sum(1 for item in posts_to_send if not item.get('is_comment'))
+            comments_count = sum(1 for item in posts_to_send if item.get('is_comment'))
+            print(f"Found {posts_count} new posts and {comments_count} comments in r/{subreddit_name}")
 
             if posts_to_send:
                 send_to_sqs(posts_to_send)
@@ -147,12 +177,12 @@ def lambda_handler(event, context):
         except Exception as e:
             print(f"Error fetching from r/{subreddit_name}: {e}")
 
-    print(f"Total posts sent to SQS: {total_posts}")
+    print(f"Total items (posts + comments) sent to SQS: {total_posts}")
 
     return {
         'statusCode': 200,
         'body': {
             'subreddits_processed': len(TARGET_SUBREDDITS),
-            'posts_fetched': total_posts
+            'items_fetched': total_posts
         }
     }

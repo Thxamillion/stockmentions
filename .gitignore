@@ -46,3 +46,8 @@ yarn-debug.log*
 # Misc
 .vercel
 *.tsbuildinfo
+
+# Generated docs
+*.md
+!plan.md
+!prd.md

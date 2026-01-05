@@ -16,16 +16,11 @@ export function TableCard({ title, subtitle, rows }: TableCardProps) {
 
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="truncate text-base font-bold text-zinc-900 dark:text-zinc-100">
-            {title}
-          </h3>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{subtitle}</p>
-        </div>
-        <span className="shrink-0 rounded-lg bg-zinc-50 px-2 py-1 text-xs font-semibold text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
-          Top {rows.length}
-        </span>
+      <div className="min-w-0">
+        <h3 className="truncate text-base font-bold text-zinc-900 dark:text-zinc-100">
+          {title}
+        </h3>
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{subtitle}</p>
       </div>
 
       <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">

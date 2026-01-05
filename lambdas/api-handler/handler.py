@@ -43,13 +43,19 @@ def json_response(status_code, body):
 def handle_trending(event):
     """
     GET /trending
-    Returns top mentioned tickers in the last 24 hours.
+    Returns top mentioned tickers with comment/thread breakdown.
+    Also supports breakdown by subreddit via query parameter.
     """
-    period_start = get_period_start('24h')
+    params = event.get('queryStringParameters') or {}
+    period = params.get('period', '24h')
+    by_subreddit = params.get('by_subreddit', 'false').lower() == 'true'
+    
+    period_start = get_period_start(period)
 
     # Scan mentions table for recent mentions
     # Note: For production, consider using a pre-aggregated table
-    ticker_counts = {}
+    ticker_data = {}  # ticker -> {comments: int, threads: int}
+    subreddit_data = {}  # subreddit -> {ticker -> {comments, threads}}
 
     try:
         response = mentions_table.scan(
@@ -59,7 +65,29 @@ def handle_trending(event):
 
         for item in response.get('Items', []):
             ticker = item['ticker']
-            ticker_counts[ticker] = ticker_counts.get(ticker, 0) + 1
+            source_type = item.get('source_type', 'post')
+            subreddit = item.get('subreddit', 'unknown')
+            
+            # Overall ticker data
+            if ticker not in ticker_data:
+                ticker_data[ticker] = {'comments': 0, 'threads': 0}
+            
+            if source_type == 'comment':
+                ticker_data[ticker]['comments'] += 1
+            else:
+                ticker_data[ticker]['threads'] += 1
+            
+            # Per-subreddit ticker data
+            if by_subreddit:
+                if subreddit not in subreddit_data:
+                    subreddit_data[subreddit] = {}
+                if ticker not in subreddit_data[subreddit]:
+                    subreddit_data[subreddit][ticker] = {'comments': 0, 'threads': 0}
+                
+                if source_type == 'comment':
+                    subreddit_data[subreddit][ticker]['comments'] += 1
+                else:
+                    subreddit_data[subreddit][ticker]['threads'] += 1
 
         # Handle pagination
         while 'LastEvaluatedKey' in response:
@@ -70,28 +98,100 @@ def handle_trending(event):
             )
             for item in response.get('Items', []):
                 ticker = item['ticker']
-                ticker_counts[ticker] = ticker_counts.get(ticker, 0) + 1
+                source_type = item.get('source_type', 'post')
+                subreddit = item.get('subreddit', 'unknown')
+                
+                if ticker not in ticker_data:
+                    ticker_data[ticker] = {'comments': 0, 'threads': 0}
+                
+                if source_type == 'comment':
+                    ticker_data[ticker]['comments'] += 1
+                else:
+                    ticker_data[ticker]['threads'] += 1
+                
+                if by_subreddit:
+                    if subreddit not in subreddit_data:
+                        subreddit_data[subreddit] = {}
+                    if ticker not in subreddit_data[subreddit]:
+                        subreddit_data[subreddit][ticker] = {'comments': 0, 'threads': 0}
+                    
+                    if source_type == 'comment':
+                        subreddit_data[subreddit][ticker]['comments'] += 1
+                    else:
+                        subreddit_data[subreddit][ticker]['threads'] += 1
 
     except Exception as e:
         print(f"Error scanning mentions: {e}")
         return json_response(500, {'error': 'Failed to fetch trending data'})
 
-    # Sort by count and take top 20
-    sorted_tickers = sorted(
-        ticker_counts.items(),
-        key=lambda x: x[1],
-        reverse=True
-    )[:20]
+    # Build response
+    response_data = {
+        'period': period,
+        'lastUpdated': datetime.now(timezone.utc).isoformat()
+    }
+    
+    if by_subreddit:
+        # Format by subreddit
+        subreddits = []
+        for subreddit_name, tickers in subreddit_data.items():
+            sorted_tickers = sorted(
+                tickers.items(),
+                key=lambda x: x[1]['comments'] + x[1]['threads'],
+                reverse=True
+            )[:10]
+            
+            rows = [
+                {
+                    'ticker': ticker,
+                    'comments': data['comments'],
+                    'threads': data['threads']
+                }
+                for ticker, data in sorted_tickers
+            ]
+            
+            subreddits.append({
+                'id': subreddit_name,
+                'name': f'r/{subreddit_name}',
+                'rows': rows
+            })
+        
+        # Overall top tickers
+        sorted_all = sorted(
+            ticker_data.items(),
+            key=lambda x: x[1]['comments'] + x[1]['threads'],
+            reverse=True
+        )[:10]
+        
+        all_tickers = [
+            {
+                'ticker': ticker,
+                'comments': data['comments'],
+                'threads': data['threads']
+            }
+            for ticker, data in sorted_all
+        ]
+        
+        response_data['subreddits'] = subreddits
+        response_data['all'] = all_tickers
+    else:
+        # Simple format - just top tickers
+        sorted_tickers = sorted(
+            ticker_data.items(),
+            key=lambda x: x[1]['comments'] + x[1]['threads'],
+            reverse=True
+        )[:20]
 
-    data = [
-        {'ticker': ticker, 'mentions': count, 'change': None}
-        for ticker, count in sorted_tickers
-    ]
+        data = [
+            {
+                'ticker': ticker,
+                'comments': data['comments'],
+                'threads': data['threads']
+            }
+            for ticker, data in sorted_tickers
+        ]
+        response_data['data'] = data
 
-    return json_response(200, {
-        'period': '24h',
-        'data': data
-    })
+    return json_response(200, response_data)
 
 
 def handle_ticker(event, symbol):
@@ -133,23 +233,35 @@ def handle_ticker(event, symbol):
         print(f"Error querying mentions: {e}")
         return json_response(500, {'error': 'Failed to fetch ticker data'})
 
+    # Count by source type
+    post_count = sum(1 for m in mentions if m.get('source_type') == 'post')
+    comment_count = sum(1 for m in mentions if m.get('source_type') == 'comment')
+
     # Format recent posts (top 10)
-    recent_posts = [
-        {
+    recent_posts = []
+    for m in mentions[:10]:
+        item = {
             'subreddit': m['subreddit'],
-            'title': m['post_title'],
             'upvotes': m['upvotes'],
             'url': m['url'],
-            'timestamp': m['timestamp_post_id'].split('#')[0]
+            'timestamp': m['timestamp_post_id'].split('#')[0],
+            'source_type': m.get('source_type', 'post')
         }
-        for m in mentions[:10]
-    ]
+        
+        if m.get('source_type') == 'comment':
+            item['comment_body'] = m.get('comment_body', '')[:200]  # Truncate
+        else:
+            item['title'] = m.get('post_title', '')
+        
+        recent_posts.append(item)
 
     return json_response(200, {
         'ticker': symbol,
         'company_name': stock_info.get('company_name', ''),
         'period': period,
         'total_mentions': len(mentions),
+        'post_mentions': post_count,
+        'comment_mentions': comment_count,
         'by_subreddit': by_subreddit,
         'recent_posts': recent_posts
     })
@@ -163,7 +275,7 @@ def handle_subreddit(event, name):
     period = event.get('queryStringParameters', {}).get('period', '24h') if event.get('queryStringParameters') else '24h'
     period_start = get_period_start(period)
 
-    ticker_counts = {}
+    ticker_data = {}  # ticker -> {comments: int, threads: int}
 
     try:
         # Query the GSI by subreddit
@@ -175,22 +287,34 @@ def handle_subreddit(event, name):
 
         for item in response.get('Items', []):
             ticker = item['ticker']
-            ticker_counts[ticker] = ticker_counts.get(ticker, 0) + 1
+            source_type = item.get('source_type', 'post')
+            
+            if ticker not in ticker_data:
+                ticker_data[ticker] = {'comments': 0, 'threads': 0}
+            
+            if source_type == 'comment':
+                ticker_data[ticker]['comments'] += 1
+            else:
+                ticker_data[ticker]['threads'] += 1
 
     except Exception as e:
         print(f"Error querying subreddit: {e}")
         return json_response(500, {'error': 'Failed to fetch subreddit data'})
 
-    # Sort by count
+    # Sort by total mentions (comments + threads)
     sorted_tickers = sorted(
-        ticker_counts.items(),
-        key=lambda x: x[1],
+        ticker_data.items(),
+        key=lambda x: x[1]['comments'] + x[1]['threads'],
         reverse=True
     )[:20]
 
     top_tickers = [
-        {'ticker': ticker, 'mentions': count}
-        for ticker, count in sorted_tickers
+        {
+            'ticker': ticker,
+            'comments': data['comments'],
+            'threads': data['threads']
+        }
+        for ticker, data in sorted_tickers
     ]
 
     return json_response(200, {

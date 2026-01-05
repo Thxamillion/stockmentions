@@ -86,21 +86,36 @@ def store_mention(ticker, post_data):
         tz=timezone.utc
     ).isoformat()
 
-    # Sort key format: timestamp#post_id
-    sort_key = f"{timestamp}#{post_data['post_id']}"
+    # Determine source type
+    is_comment = post_data.get('is_comment', False)
+    
+    # Sort key format: timestamp#post_id or timestamp#comment_id
+    item_id = post_data.get('comment_id') if is_comment else post_data['post_id']
+    sort_key = f"{timestamp}#{item_id}"
 
     try:
-        mentions_table.put_item(Item={
+        item = {
             'ticker': ticker,
             'timestamp_post_id': sort_key,
             'subreddit': post_data['subreddit'],
             'post_id': post_data['post_id'],
-            'post_title': post_data['title'],
             'author': post_data['author'],
             'upvotes': post_data['upvotes'],
             'url': post_data['url'],
-            'created_utc': int(post_data['created_utc'])
-        })
+            'created_utc': int(post_data['created_utc']),
+            'source_type': 'comment' if is_comment else 'post'
+        }
+        
+        # Add type-specific fields
+        if is_comment:
+            item['comment_id'] = post_data['comment_id']
+            item['comment_body'] = post_data.get('body', '')
+            item['parent_id'] = post_data.get('parent_id', '')
+        else:
+            item['post_title'] = post_data.get('title', '')
+            item['post_body'] = post_data.get('selftext', '')
+        
+        mentions_table.put_item(Item=item)
         return True
     except Exception as e:
         print(f"Error storing mention for {ticker}: {e}")
@@ -126,11 +141,26 @@ def lambda_handler(event, context):
             post_data = json.loads(record['body'])
             processed_posts += 1
 
-            # Extract tickers from title
-            tickers = extract_tickers(post_data['title'], valid_tickers)
+            # Determine what text to scan
+            is_comment = post_data.get('is_comment', False)
+            
+            if is_comment:
+                # For comments, scan the comment body
+                text_to_scan = post_data.get('body', '')
+                preview = text_to_scan[:50]
+            else:
+                # For posts, scan title + selftext
+                title = post_data.get('title', '')
+                selftext = post_data.get('selftext', '')
+                text_to_scan = f"{title} {selftext}"
+                preview = post_data.get('title', '')[:50]
+
+            # Extract tickers
+            tickers = extract_tickers(text_to_scan, valid_tickers)
 
             if tickers:
-                print(f"Found tickers {tickers} in: {post_data['title'][:50]}...")
+                source = "comment" if is_comment else "post"
+                print(f"Found tickers {tickers} in {source}: {preview}...")
 
                 for ticker in tickers:
                     if store_mention(ticker, post_data):

@@ -95,17 +95,38 @@
 **Partition Key:** `ticker` (String)  
 **Sort Key:** `timestamp#post_id` (String)
 
+**Post Mention:**
 ```json
 {
   "ticker": "AAPL",
-  "timestamp#post_id": "2024-01-15T14:30:00Z#abc123",
+  "timestamp_post_id": "2024-01-15T14:30:00Z#abc123",
   "subreddit": "wallstreetbets",
   "post_id": "abc123",
   "post_title": "AAPL to the moon!",
+  "post_body": "I think AAPL is going to surge...",
   "author": "u/someone",
   "upvotes": 150,
   "url": "https://reddit.com/r/wallstreetbets/...",
-  "created_utc": 1705329000
+  "created_utc": 1705329000,
+  "source_type": "post"
+}
+```
+
+**Comment Mention:**
+```json
+{
+  "ticker": "AAPL",
+  "timestamp_post_id": "2024-01-15T14:35:00Z#def456",
+  "subreddit": "wallstreetbets",
+  "post_id": "abc123",
+  "comment_id": "def456",
+  "comment_body": "Agreed, AAPL looks strong",
+  "parent_id": "abc123",
+  "author": "u/trader123",
+  "upvotes": 45,
+  "url": "https://reddit.com/r/wallstreetbets/.../def456",
+  "created_utc": 1705329300,
+  "source_type": "comment"
 }
 ```
 

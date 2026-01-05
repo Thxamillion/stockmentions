@@ -36,7 +36,7 @@ const SUBREDDITS = [
   { id: "stockmarket", name: "r/stockmarket" },
 ];
 
-function generateMockRows(subredditId: string, timeKey: TimeRange, limit = 12): TickerMention[] {
+function generateMockRows(subredditId: string, timeKey: TimeRange, limit = 10): TickerMention[] {
   const rand = seededRandom(hashString(`${subredditId}|${timeKey}`));
 
   const size = Math.min(limit, 8 + Math.floor(rand() * 8));
@@ -67,7 +67,7 @@ function generateMockRows(subredditId: string, timeKey: TimeRange, limit = 12): 
   return rows;
 }
 
-function mergeRows(listOfRows: TickerMention[][], limit = 12): TickerMention[] {
+function mergeRows(listOfRows: TickerMention[][], limit = 10): TickerMention[] {
   const map = new Map<string, TickerMention>();
   for (const rows of listOfRows) {
     for (const r of rows) {
@@ -85,7 +85,7 @@ function mergeRows(listOfRows: TickerMention[][], limit = 12): TickerMention[] {
 export async function getTrending(timeRange: TimeRange): Promise<TrendingResponse> {
   // In production, this would call the real API
   if (API_BASE_URL) {
-    const response = await fetch(`${API_BASE_URL}/trending?period=${timeRange}`);
+    const response = await fetch(`${API_BASE_URL}/trending?period=${timeRange}&by_subreddit=true`);
     if (!response.ok) throw new Error("Failed to fetch trending data");
     return response.json();
   }

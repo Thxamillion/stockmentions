@@ -139,72 +139,44 @@ stock-mentions/
 
 ## Frontend Work
 
-### Phase F1: Project Setup
+### Phase F1: Project Setup [COMPLETE]
 1. **Scaffold React + Vite + TypeScript**
-   ```bash
-   cd frontend
-   npm create vite@latest . -- --template react-ts
-   npm install
-   ```
+   - [x] `npm create vite@latest . -- --template react-ts`
 
 2. **Install dependencies**
-   - `axios` or `fetch` wrapper for API calls
-   - `recharts` or `chart.js` for charts
-   - `tailwindcss` for styling
-   - `react-router-dom` for routing
+   - [x] `tailwindcss` for styling
+   - [x] `react-router-dom` for routing
 
 3. **Configure Vite**
-   - API proxy for local development
-   - Build output for S3
+   - [x] Tailwind CSS plugin configured
+   - [x] Build output for S3
 
-### Phase F2: Core Components
+### Phase F2: Core Components [COMPLETE]
 1. **Layout components**
-   - `Header` - Logo, navigation
-   - `Layout` - Page wrapper
+   - [x] `Wordmark` - Logo component
+   - [x] `SegmentedControl` - Time range filter
 
 2. **Dashboard page** (`/`)
-   - `TrendingTable` - Top 20 tickers with mention counts, % change
-   - `SubredditTabs` - Filter by subreddit
-   - Auto-refresh every 5 minutes
+   - [x] `TableCard` - Subreddit ticker tables
+   - [x] `SkeletonTableCard` - Loading skeleton
+   - [x] Time range filter (24h, 7d, 30d, 90d)
+   - [x] Responsive grid (1/2/3 columns)
 
-3. **Ticker detail page** (`/ticker/:symbol`)
-   - `TickerHeader` - Symbol, company name, total mentions
-   - `MentionChart` - Line chart of mentions over time
-   - `SubredditBreakdown` - Pie/bar chart by subreddit
-   - `RecentPosts` - List of recent Reddit posts with links
-
-4. **Subreddit page** (`/subreddit/:name`)
-   - Top tickers for that subreddit
-   - Recent activity
-
-### Phase F3: API Integration
+### Phase F3: API Integration [COMPLETE]
 1. **API client** (`src/api/client.ts`)
-   - Base URL configuration (env variable)
-   - Typed fetch functions:
-     - `getTrending()`
-     - `getTicker(symbol, period)`
-     - `getSubreddit(name)`
+   - [x] Base URL configuration (env variable)
+   - [x] Typed fetch functions
+   - [x] Mock data for development
 
-2. **React Query or SWR** (optional)
-   - Caching and refetching
-
-3. **Mock data** for development before backend is ready
-
-### Phase F4: Polish
-1. **Loading states** - Skeletons
-2. **Error handling** - Error boundaries, retry
-3. **Responsive design** - Mobile-friendly
-4. **Dark mode** (optional)
+### Phase F4: Polish [COMPLETE]
+- [x] Loading states - Skeletons
+- [x] Error handling - Retry button
+- [x] Responsive design - Mobile-friendly
 
 ### Phase F5: Deployment
-1. **S3 bucket** for static hosting
-2. **CloudFront distribution** for CDN
-3. **Build and deploy script**
-   ```bash
-   npm run build
-   aws s3 sync dist/ s3://stock-mentions-frontend --delete
-   aws cloudfront create-invalidation --distribution-id XXX --paths "/*"
-   ```
+- [ ] S3 bucket for static hosting (defined in Terraform)
+- [ ] CloudFront distribution for CDN (defined in Terraform)
+- [ ] Build and deploy script
 
 ---
 
@@ -243,19 +215,18 @@ stock-mentions/
 - [x] `lambdas/api-handler/requirements.txt`
 - [x] `scripts/deploy-lambdas.sh`
 
-### Frontend (12+ files)
-- `frontend/package.json`
-- `frontend/vite.config.ts`
-- `frontend/tailwind.config.js`
-- `frontend/src/App.tsx`
-- `frontend/src/api/client.ts`
-- `frontend/src/pages/Dashboard.tsx`
-- `frontend/src/pages/TickerDetail.tsx`
-- `frontend/src/pages/SubredditView.tsx`
-- `frontend/src/components/Header.tsx`
-- `frontend/src/components/TrendingTable.tsx`
-- `frontend/src/components/MentionChart.tsx`
-- `frontend/src/components/RecentPosts.tsx`
+### Frontend (10 files) [COMPLETE]
+- [x] `frontend/package.json`
+- [x] `frontend/vite.config.ts`
+- [x] `frontend/src/index.css` (Tailwind entry)
+- [x] `frontend/src/App.tsx`
+- [x] `frontend/src/api/client.ts`
+- [x] `frontend/src/types/index.ts`
+- [x] `frontend/src/pages/Dashboard.tsx`
+- [x] `frontend/src/components/Wordmark.tsx`
+- [x] `frontend/src/components/SegmentedControl.tsx`
+- [x] `frontend/src/components/TableCard.tsx`
+- [x] `frontend/src/components/SkeletonTableCard.tsx`
 
 ---
 
