@@ -17,7 +17,7 @@ export interface TrendingResponse {
   all: TickerMention[];
 }
 
-export type TimeRange = "24h" | "7d" | "30d" | "90d";
+export type TimeRange = "24h" | "7d" | "30d";
 
 export interface TimeOption {
   key: TimeRange;

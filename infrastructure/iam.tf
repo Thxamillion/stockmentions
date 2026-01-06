@@ -68,27 +68,27 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
   })
 }
 
-# SQS access policy
-resource "aws_iam_role_policy" "lambda_sqs" {
-  name = "${var.project_name}-lambda-sqs"
-  role = aws_iam_role.lambda_execution.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "sqs:SendMessage",
-          "sqs:ReceiveMessage",
-          "sqs:DeleteMessage",
-          "sqs:GetQueueAttributes"
-        ]
-        Resource = aws_sqs_queue.posts.arn
-      }
-    ]
-  })
-}
+# SQS access policy - DISABLED (no longer using SQS)
+# resource "aws_iam_role_policy" "lambda_sqs" {
+#   name = "${var.project_name}-lambda-sqs"
+#   role = aws_iam_role.lambda_execution.id
+#
+#   policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       {
+#         Effect = "Allow"
+#         Action = [
+#           "sqs:SendMessage",
+#           "sqs:ReceiveMessage",
+#           "sqs:DeleteMessage",
+#           "sqs:GetQueueAttributes"
+#         ]
+#         Resource = aws_sqs_queue.posts.arn
+#       }
+#     ]
+#   })
+# }
 
 # SSM Parameter Store access (for Reddit credentials)
 resource "aws_iam_role_policy" "lambda_ssm" {

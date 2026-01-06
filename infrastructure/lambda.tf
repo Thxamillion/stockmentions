@@ -50,71 +50,71 @@ resource "aws_lambda_function" "stock_sync" {
   }
 }
 
-# Reddit Fetch Lambda
-resource "aws_lambda_function" "reddit_fetch" {
-  function_name = "${var.project_name}-reddit-fetch"
-  role          = aws_iam_role.lambda_execution.arn
-  handler       = "handler.lambda_handler"
-  runtime       = "python3.12"
-  timeout       = 60
-  memory_size   = 128
+# Reddit Fetch Lambda - DISABLED (replaced by EC2 worker)
+# resource "aws_lambda_function" "reddit_fetch" {
+#   function_name = "${var.project_name}-reddit-fetch"
+#   role          = aws_iam_role.lambda_execution.arn
+#   handler       = "handler.lambda_handler"
+#   runtime       = "python3.12"
+#   timeout       = 60
+#   memory_size   = 128
+#
+#   filename         = data.archive_file.placeholder.output_path
+#   source_code_hash = data.archive_file.placeholder.output_base64sha256
+#
+#   environment {
+#     variables = {
+#       SQS_QUEUE_URL              = aws_sqs_queue.posts.url
+#       METADATA_TABLE             = aws_dynamodb_table.metadata.name
+#       REDDIT_CLIENT_ID_PARAM     = var.reddit_client_id_param
+#       REDDIT_CLIENT_SECRET_PARAM = var.reddit_client_secret_param
+#       TARGET_SUBREDDITS          = join(",", var.target_subreddits)
+#     }
+#   }
+#
+#   lifecycle {
+#     ignore_changes = [filename, source_code_hash]
+#   }
+#
+#   tags = {
+#     Name = "${var.project_name}-reddit-fetch"
+#   }
+# }
 
-  filename         = data.archive_file.placeholder.output_path
-  source_code_hash = data.archive_file.placeholder.output_base64sha256
+# Mention Processor Lambda - DISABLED (EC2 worker writes directly to DynamoDB)
+# resource "aws_lambda_function" "mention_processor" {
+#   function_name = "${var.project_name}-mention-processor"
+#   role          = aws_iam_role.lambda_execution.arn
+#   handler       = "handler.lambda_handler"
+#   runtime       = "python3.12"
+#   timeout       = 30
+#   memory_size   = 128
+#
+#   filename         = data.archive_file.placeholder.output_path
+#   source_code_hash = data.archive_file.placeholder.output_base64sha256
+#
+#   environment {
+#     variables = {
+#       STOCKS_TABLE   = aws_dynamodb_table.stocks.name
+#       MENTIONS_TABLE = aws_dynamodb_table.mentions.name
+#     }
+#   }
+#
+#   lifecycle {
+#     ignore_changes = [filename, source_code_hash]
+#   }
+#
+#   tags = {
+#     Name = "${var.project_name}-mention-processor"
+#   }
+# }
 
-  environment {
-    variables = {
-      SQS_QUEUE_URL              = aws_sqs_queue.posts.url
-      METADATA_TABLE             = aws_dynamodb_table.metadata.name
-      REDDIT_CLIENT_ID_PARAM     = var.reddit_client_id_param
-      REDDIT_CLIENT_SECRET_PARAM = var.reddit_client_secret_param
-      TARGET_SUBREDDITS          = join(",", var.target_subreddits)
-    }
-  }
-
-  lifecycle {
-    ignore_changes = [filename, source_code_hash]
-  }
-
-  tags = {
-    Name = "${var.project_name}-reddit-fetch"
-  }
-}
-
-# Mention Processor Lambda
-resource "aws_lambda_function" "mention_processor" {
-  function_name = "${var.project_name}-mention-processor"
-  role          = aws_iam_role.lambda_execution.arn
-  handler       = "handler.lambda_handler"
-  runtime       = "python3.12"
-  timeout       = 30
-  memory_size   = 128
-
-  filename         = data.archive_file.placeholder.output_path
-  source_code_hash = data.archive_file.placeholder.output_base64sha256
-
-  environment {
-    variables = {
-      STOCKS_TABLE   = aws_dynamodb_table.stocks.name
-      MENTIONS_TABLE = aws_dynamodb_table.mentions.name
-    }
-  }
-
-  lifecycle {
-    ignore_changes = [filename, source_code_hash]
-  }
-
-  tags = {
-    Name = "${var.project_name}-mention-processor"
-  }
-}
-
-# SQS trigger for mention processor
-resource "aws_lambda_event_source_mapping" "sqs_trigger" {
-  event_source_arn = aws_sqs_queue.posts.arn
-  function_name    = aws_lambda_function.mention_processor.arn
-  batch_size       = 10
-}
+# SQS trigger for mention processor - DISABLED
+# resource "aws_lambda_event_source_mapping" "sqs_trigger" {
+#   event_source_arn = aws_sqs_queue.posts.arn
+#   function_name    = aws_lambda_function.mention_processor.arn
+#   batch_size       = 10
+# }
 
 # API Handler Lambda
 resource "aws_lambda_function" "api_handler" {

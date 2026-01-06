@@ -1,0 +1,22 @@
+[Unit]
+Description=Stock Mentions Reddit Worker
+After=network.target
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/home/ec2-user/stockmentions/worker
+ExecStart=/usr/bin/python3 /home/ec2-user/stockmentions/worker/worker.py --daemon
+Restart=always
+RestartSec=30
+StandardOutput=append:/var/log/stock-mentions-worker.log
+StandardError=append:/var/log/stock-mentions-worker.log
+
+# Environment variables (optional - can use IAM role instead)
+# Environment=AWS_REGION=us-east-1
+# Environment=STOCKS_TABLE=stock-mentions-stocks
+# Environment=MENTIONS_TABLE=stock-mentions-mentions
+# Environment=METADATA_TABLE=stock-mentions-metadata
+
+[Install]
+WantedBy=multi-user.target

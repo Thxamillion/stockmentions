@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { SegmentedControl, SkeletonTableCard, TableCard, Wordmark } from "../components";
+import { useTrendingData, trendingKeys } from "../hooks";
 import { getTrending } from "../api/client";
-import type { TimeRange, TrendingResponse } from "../types";
+import type { TimeRange } from "../types";
 
 const TIME_OPTIONS = [
   { key: "24h" as const, label: "24H" },
   { key: "7d" as const, label: "7D" },
   { key: "30d" as const, label: "30D" },
-  { key: "90d" as const, label: "90D" },
 ];
 
 function formatUpdated(ts: string): string {
@@ -22,39 +23,22 @@ function formatUpdated(ts: string): string {
 
 export function Dashboard() {
   const [timeKey, setTimeKey] = useState<TimeRange>("7d");
-  const [isLoading, setIsLoading] = useState(true);
-  const [data, setData] = useState<TrendingResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
+  // Use React Query hook instead of manual useEffect
+  const { data, isLoading, error } = useTrendingData(timeKey);
+
+  // Prefetch all time ranges on mount for instant filter switching
   useEffect(() => {
-    let cancelled = false;
+    const timeRanges: TimeRange[] = ["24h", "7d", "30d"];
 
-    async function fetchData() {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const result = await getTrending(timeKey);
-        if (!cancelled) {
-          setData(result);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to fetch data");
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    fetchData();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [timeKey]);
+    timeRanges.forEach((range) => {
+      queryClient.prefetchQuery({
+        queryKey: trendingKeys.byTimeRange(range),
+        queryFn: () => getTrending(range),
+      });
+    });
+  }, [queryClient]);
 
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-black dark:text-zinc-100">
@@ -120,9 +104,9 @@ export function Dashboard() {
           {error ? (
             <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
               <p className="font-semibold">Error loading data</p>
-              <p className="mt-1">{error}</p>
+              <p className="mt-1">{error.message}</p>
               <button
-                onClick={() => setTimeKey(timeKey)}
+                onClick={() => window.location.reload()}
                 className="mt-2 rounded-lg bg-red-100 px-3 py-1 text-xs font-semibold hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800"
               >
                 Retry

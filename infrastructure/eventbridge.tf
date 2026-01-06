@@ -23,27 +23,27 @@ resource "aws_lambda_permission" "stock_sync_eventbridge" {
   source_arn    = aws_cloudwatch_event_rule.stock_sync.arn
 }
 
-# Reddit fetch schedule - every hour
-resource "aws_cloudwatch_event_rule" "reddit_fetch" {
-  name                = "${var.project_name}-reddit-fetch"
-  description         = "Trigger Reddit fetch Lambda every hour"
-  schedule_expression = "rate(1 hour)"
-
-  tags = {
-    Name = "${var.project_name}-reddit-fetch"
-  }
-}
-
-resource "aws_cloudwatch_event_target" "reddit_fetch" {
-  rule      = aws_cloudwatch_event_rule.reddit_fetch.name
-  target_id = "reddit-fetch-lambda"
-  arn       = aws_lambda_function.reddit_fetch.arn
-}
-
-resource "aws_lambda_permission" "reddit_fetch_eventbridge" {
-  statement_id  = "AllowEventBridgeInvoke"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.reddit_fetch.function_name
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.reddit_fetch.arn
-}
+# Reddit fetch schedule - DISABLED (replaced by EC2 worker)
+# resource "aws_cloudwatch_event_rule" "reddit_fetch" {
+#   name                = "${var.project_name}-reddit-fetch"
+#   description         = "Trigger Reddit fetch Lambda every hour"
+#   schedule_expression = "rate(1 hour)"
+#
+#   tags = {
+#     Name = "${var.project_name}-reddit-fetch"
+#   }
+# }
+#
+# resource "aws_cloudwatch_event_target" "reddit_fetch" {
+#   rule      = aws_cloudwatch_event_rule.reddit_fetch.name
+#   target_id = "reddit-fetch-lambda"
+#   arn       = aws_lambda_function.reddit_fetch.arn
+# }
+#
+# resource "aws_lambda_permission" "reddit_fetch_eventbridge" {
+#   statement_id  = "AllowEventBridgeInvoke"
+#   action        = "lambda:InvokeFunction"
+#   function_name = aws_lambda_function.reddit_fetch.function_name
+#   principal     = "events.amazonaws.com"
+#   source_arn    = aws_cloudwatch_event_rule.reddit_fetch.arn
+# }

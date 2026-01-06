@@ -28,7 +28,8 @@ output "cloudfront_domain" {
   value       = aws_cloudfront_distribution.frontend.domain_name
 }
 
-output "sqs_queue_url" {
-  description = "SQS queue URL for Reddit posts"
-  value       = aws_sqs_queue.posts.url
-}
+# SQS queue URL - DISABLED (no longer using SQS)
+# output "sqs_queue_url" {
+#   description = "SQS queue URL for Reddit posts"
+#   value       = aws_sqs_queue.posts.url
+# }

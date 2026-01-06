@@ -20,8 +20,12 @@ if ! command -v aws &> /dev/null; then
     exit 1
 fi
 
-# Check for pip
-if ! command -v pip &> /dev/null; then
+# Check for pip3 or pip
+if command -v pip3 &> /dev/null; then
+    PIP_CMD="pip3"
+elif command -v pip &> /dev/null; then
+    PIP_CMD="pip"
+else
     echo -e "${RED}Error: pip not found. Please install Python and pip.${NC}"
     exit 1
 fi
@@ -43,7 +47,7 @@ deploy_lambda() {
     # Install dependencies
     if [ -f "${lambda_dir}/requirements.txt" ]; then
         echo "Installing dependencies..."
-        pip install -r "${lambda_dir}/requirements.txt" -t "${package_dir}" --quiet --upgrade
+        $PIP_CMD install -r "${lambda_dir}/requirements.txt" -t "${package_dir}" --quiet --upgrade
 
         # Remove unnecessary files to reduce package size
         find "${package_dir}" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
