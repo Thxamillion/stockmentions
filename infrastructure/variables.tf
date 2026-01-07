@@ -38,6 +38,7 @@ variable "target_subreddits" {
     "stocks",
     "investing",
     "stockmarket",
-    "options"
+    "options",
+    "pennystocks"
   ]
 }
