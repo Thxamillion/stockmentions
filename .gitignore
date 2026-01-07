@@ -47,7 +47,14 @@ yarn-debug.log*
 .vercel
 *.tsbuildinfo
 
-# Generated docs
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage
+*.cover
+
+# Generated docs (exclude test READMEs)
 *.md
 !plan.md
 !prd.md
+!tests/README.md

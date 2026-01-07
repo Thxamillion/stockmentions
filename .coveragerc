@@ -1,0 +1,18 @@
+[run]
+# Coverage configuration
+source = worker,lambdas
+omit =
+    */tests/*
+    */test_*.py
+    */__pycache__/*
+    */package/*
+    */.venv/*
+
+[report]
+# Report options
+precision = 2
+show_missing = True
+skip_covered = False
+
+[html]
+directory = htmlcov
