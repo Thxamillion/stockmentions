@@ -61,7 +61,9 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
           aws_dynamodb_table.stocks.arn,
           aws_dynamodb_table.mentions.arn,
           "${aws_dynamodb_table.mentions.arn}/index/*",
-          aws_dynamodb_table.metadata.arn
+          aws_dynamodb_table.metadata.arn,
+          aws_dynamodb_table.trends.arn,
+          "${aws_dynamodb_table.trends.arn}/index/*"
         ]
       }
     ]

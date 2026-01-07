@@ -127,20 +127,36 @@ def extract_tickers(text: str, valid_tickers: Set[str]) -> List[str]:
     Matches:
     - $AAPL format (most reliable)
     - AAPL (uppercase, 2-5 chars, word boundary)
+
+    Special handling:
+    - "AI" only matched if prefixed with $ or as "C3.ai"
+    - Excludes contractions like "don't" → DON
     """
     found_tickers = set()
 
     # Pattern for $TICKER format
-    dollar_pattern = r'\$([A-Z]{1,5})\b'
+    # Negative lookbehind to avoid matching apostrophes (e.g., "don't" → "DON")
+    dollar_pattern = r'(?<![a-zA-Z\'])\$([A-Z]{1,5})\b'
     for match in re.finditer(dollar_pattern, text.upper()):
         ticker = match.group(1)
         if ticker in valid_tickers:
             found_tickers.add(ticker)
 
+    # Special case: Match "C3.ai" or "C3 AI" for AI ticker
+    c3ai_pattern = r'\bC3[\.\s]?AI\b'
+    if re.search(c3ai_pattern, text, re.IGNORECASE) and 'AI' in valid_tickers:
+        found_tickers.add('AI')
+
     # Pattern for plain TICKER format (must be uppercase in original)
-    plain_pattern = r'\b([A-Z]{2,5})\b'
+    # Excludes apostrophes and special handling for "AI"
+    plain_pattern = r'(?<![a-zA-Z\'])\b([A-Z]{2,5})\b(?![a-zA-Z\'])'
     for match in re.finditer(plain_pattern, text):
         ticker = match.group(1)
+
+        # Skip "AI" in plain format (only match with $ or C3.ai)
+        if ticker == 'AI':
+            continue
+
         if ticker in valid_tickers:
             found_tickers.add(ticker)
 

@@ -12,6 +12,7 @@ from boto3.dynamodb.conditions import Key
 dynamodb = boto3.resource('dynamodb')
 stocks_table = dynamodb.Table(os.environ['STOCKS_TABLE'])
 mentions_table = dynamodb.Table(os.environ['MENTIONS_TABLE'])
+trends_table = dynamodb.Table(os.environ['TRENDS_TABLE'])
 
 
 def get_period_start(period):
@@ -44,16 +45,73 @@ def handle_trending(event):
     """
     GET /trending
     Returns top mentioned tickers with comment/thread breakdown.
-    Also supports breakdown by subreddit via query parameter.
+    Now reads from pre-aggregated trends table for fast queries.
     """
     params = event.get('queryStringParameters') or {}
     period = params.get('period', '24h')
     by_subreddit = params.get('by_subreddit', 'false').lower() == 'true'
-    
+
+    # If requesting by_subreddit, fall back to real-time scan
+    # (subreddit breakdown not pre-aggregated yet)
+    if by_subreddit:
+        return handle_trending_realtime(event)
+
+    # Read pre-aggregated data from trends table
+    try:
+        # Query the GSI to get all tickers for this period, sorted by mention_count
+        response = trends_table.query(
+            IndexName='by-mention-count',
+            KeyConditionExpression=Key('period').eq(period),
+            ScanIndexForward=False,  # Descending order (highest mentions first)
+            Limit=20  # Only need top 20
+        )
+
+        items = response.get('Items', [])
+
+        # Check if we have data
+        if not items:
+            print(f"No trend data found for period {period}. Falling back to real-time.")
+            return handle_trending_realtime(event)
+
+        # Get last_updated from first item (all should have same timestamp)
+        last_updated = items[0].get('last_updated', datetime.now(timezone.utc).isoformat())
+
+        # Format response
+        data = [
+            {
+                'ticker': item['ticker'],
+                'comments': int(item.get('comment_count', 0)),
+                'threads': int(item.get('thread_count', 0))
+            }
+            for item in items
+        ]
+
+        return json_response(200, {
+            'period': period,
+            'lastUpdated': last_updated,
+            'data': data
+        })
+
+    except Exception as e:
+        print(f"Error reading trends table: {e}")
+        print("Falling back to real-time scan...")
+        return handle_trending_realtime(event)
+
+
+def handle_trending_realtime(event):
+    """
+    FALLBACK: Real-time trending calculation by scanning mentions table.
+    Used when:
+    - by_subreddit=true (not pre-aggregated)
+    - Trends table is empty (first run)
+    - Trends table query fails
+    """
+    params = event.get('queryStringParameters') or {}
+    period = params.get('period', '24h')
+    by_subreddit = params.get('by_subreddit', 'false').lower() == 'true'
+
     period_start = get_period_start(period)
 
-    # Scan mentions table for recent mentions
-    # Note: For production, consider using a pre-aggregated table
     ticker_data = {}  # ticker -> {comments: int, threads: int}
     subreddit_data = {}  # subreddit -> {ticker -> {comments, threads}}
 
@@ -67,23 +125,23 @@ def handle_trending(event):
             ticker = item['ticker']
             source_type = item.get('source_type', 'post')
             subreddit = item.get('subreddit', 'unknown')
-            
+
             # Overall ticker data
             if ticker not in ticker_data:
                 ticker_data[ticker] = {'comments': 0, 'threads': 0}
-            
+
             if source_type == 'comment':
                 ticker_data[ticker]['comments'] += 1
             else:
                 ticker_data[ticker]['threads'] += 1
-            
+
             # Per-subreddit ticker data
             if by_subreddit:
                 if subreddit not in subreddit_data:
                     subreddit_data[subreddit] = {}
                 if ticker not in subreddit_data[subreddit]:
                     subreddit_data[subreddit][ticker] = {'comments': 0, 'threads': 0}
-                
+
                 if source_type == 'comment':
                     subreddit_data[subreddit][ticker]['comments'] += 1
                 else:
@@ -100,21 +158,21 @@ def handle_trending(event):
                 ticker = item['ticker']
                 source_type = item.get('source_type', 'post')
                 subreddit = item.get('subreddit', 'unknown')
-                
+
                 if ticker not in ticker_data:
                     ticker_data[ticker] = {'comments': 0, 'threads': 0}
-                
+
                 if source_type == 'comment':
                     ticker_data[ticker]['comments'] += 1
                 else:
                     ticker_data[ticker]['threads'] += 1
-                
+
                 if by_subreddit:
                     if subreddit not in subreddit_data:
                         subreddit_data[subreddit] = {}
                     if ticker not in subreddit_data[subreddit]:
                         subreddit_data[subreddit][ticker] = {'comments': 0, 'threads': 0}
-                    
+
                     if source_type == 'comment':
                         subreddit_data[subreddit][ticker]['comments'] += 1
                     else:
@@ -129,7 +187,7 @@ def handle_trending(event):
         'period': period,
         'lastUpdated': datetime.now(timezone.utc).isoformat()
     }
-    
+
     if by_subreddit:
         # Format by subreddit
         subreddits = []
@@ -139,7 +197,7 @@ def handle_trending(event):
                 key=lambda x: x[1]['comments'] + x[1]['threads'],
                 reverse=True
             )[:10]
-            
+
             rows = [
                 {
                     'ticker': ticker,
@@ -148,20 +206,20 @@ def handle_trending(event):
                 }
                 for ticker, data in sorted_tickers
             ]
-            
+
             subreddits.append({
                 'id': subreddit_name,
                 'name': f'r/{subreddit_name}',
                 'rows': rows
             })
-        
+
         # Overall top tickers
         sorted_all = sorted(
             ticker_data.items(),
             key=lambda x: x[1]['comments'] + x[1]['threads'],
             reverse=True
         )[:10]
-        
+
         all_tickers = [
             {
                 'ticker': ticker,
@@ -170,7 +228,7 @@ def handle_trending(event):
             }
             for ticker, data in sorted_all
         ]
-        
+
         response_data['subreddits'] = subreddits
         response_data['all'] = all_tickers
     else:

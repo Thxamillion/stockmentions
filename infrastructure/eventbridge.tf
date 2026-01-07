@@ -23,6 +23,31 @@ resource "aws_lambda_permission" "stock_sync_eventbridge" {
   source_arn    = aws_cloudwatch_event_rule.stock_sync.arn
 }
 
+# Trends aggregation schedule - every hour
+resource "aws_cloudwatch_event_rule" "trends_aggregator" {
+  name                = "${var.project_name}-trends-aggregator"
+  description         = "Trigger trends aggregation Lambda every hour"
+  schedule_expression = "rate(1 hour)"
+
+  tags = {
+    Name = "${var.project_name}-trends-aggregator"
+  }
+}
+
+resource "aws_cloudwatch_event_target" "trends_aggregator" {
+  rule      = aws_cloudwatch_event_rule.trends_aggregator.name
+  target_id = "trends-aggregator-lambda"
+  arn       = aws_lambda_function.trends_aggregator.arn
+}
+
+resource "aws_lambda_permission" "trends_aggregator_eventbridge" {
+  statement_id  = "AllowEventBridgeInvokeTrends"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.trends_aggregator.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.trends_aggregator.arn
+}
+
 # Reddit fetch schedule - DISABLED (replaced by EC2 worker)
 # resource "aws_cloudwatch_event_rule" "reddit_fetch" {
 #   name                = "${var.project_name}-reddit-fetch"

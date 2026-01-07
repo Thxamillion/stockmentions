@@ -67,3 +67,39 @@ resource "aws_dynamodb_table" "metadata" {
     Name = "${var.project_name}-metadata"
   }
 }
+
+# Trends table - stores pre-aggregated trending data
+resource "aws_dynamodb_table" "trends" {
+  name         = "${var.project_name}-trends"
+  billing_mode = "PAY_PER_REQUEST"
+
+  hash_key  = "period"
+  range_key = "ticker"
+
+  attribute {
+    name = "period"
+    type = "S"
+  }
+
+  attribute {
+    name = "ticker"
+    type = "S"
+  }
+
+  attribute {
+    name = "mention_count"
+    type = "N"
+  }
+
+  # GSI for sorting by mention count (get top N tickers)
+  global_secondary_index {
+    name            = "by-mention-count"
+    hash_key        = "period"
+    range_key       = "mention_count"
+    projection_type = "ALL"
+  }
+
+  tags = {
+    Name = "${var.project_name}-trends"
+  }
+}

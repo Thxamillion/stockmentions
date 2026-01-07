@@ -23,6 +23,12 @@ variable "worker_daemon_sleep_seconds" {
   default     = 600  # 10 minutes
 }
 
+variable "ec2_key_name" {
+  description = "EC2 key pair name for SSH access"
+  type        = string
+  default     = "stockmentions-worker"
+}
+
 # ============================================================================
 # Data Sources
 # ============================================================================
@@ -181,14 +187,13 @@ resource "aws_security_group" "worker" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # No inbound access needed - worker only makes outbound calls
-  # Add SSH if you need to debug:
-  # ingress {
-  #   from_port   = 22
-  #   to_port     = 22
-  #   protocol    = "tcp"
-  #   cidr_blocks = ["YOUR_IP/32"]
-  # }
+  # SSH access for debugging
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["75.228.171.174/32"]
+  }
 
   tags = {
     Name = "${var.project_name}-worker-sg"
@@ -206,6 +211,7 @@ resource "aws_instance" "worker" {
   instance_type          = var.ec2_instance_type
   iam_instance_profile   = aws_iam_instance_profile.ec2_worker.name
   vpc_security_group_ids = [aws_security_group.worker[0].id]
+  key_name               = var.ec2_key_name
 
   tags = {
     Name = "${var.project_name}-worker"

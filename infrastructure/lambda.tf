@@ -50,6 +50,34 @@ resource "aws_lambda_function" "stock_sync" {
   }
 }
 
+# Trends Aggregator Lambda
+resource "aws_lambda_function" "trends_aggregator" {
+  function_name = "${var.project_name}-trends-aggregator"
+  role          = aws_iam_role.lambda_execution.arn
+  handler       = "handler.lambda_handler"
+  runtime       = "python3.12"
+  timeout       = 180 # 3 minutes (enough for scanning mentions table)
+  memory_size   = 512 # More memory for faster aggregation
+
+  filename         = data.archive_file.placeholder.output_path
+  source_code_hash = data.archive_file.placeholder.output_base64sha256
+
+  environment {
+    variables = {
+      MENTIONS_TABLE = aws_dynamodb_table.mentions.name
+      TRENDS_TABLE   = aws_dynamodb_table.trends.name
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  tags = {
+    Name = "${var.project_name}-trends-aggregator"
+  }
+}
+
 # Reddit Fetch Lambda - DISABLED (replaced by EC2 worker)
 # resource "aws_lambda_function" "reddit_fetch" {
 #   function_name = "${var.project_name}-reddit-fetch"
@@ -132,6 +160,7 @@ resource "aws_lambda_function" "api_handler" {
     variables = {
       STOCKS_TABLE   = aws_dynamodb_table.stocks.name
       MENTIONS_TABLE = aws_dynamodb_table.mentions.name
+      TRENDS_TABLE   = aws_dynamodb_table.trends.name
     }
   }
 
